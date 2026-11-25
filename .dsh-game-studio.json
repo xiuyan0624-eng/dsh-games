@@ -1,0 +1,16 @@
+{
+  "tool": "dsh-game-studio",
+  "version": 1,
+  "games": {
+    "staff-drop": {
+      "title": "音符对对碰",
+      "source": "6f4dad4ba93d99dd",
+      "publishedAt": "2026-11-25T16:28:58.007Z",
+      "buildId": "f54fbe4da32f",
+      "dimension": "2d",
+      "orientation": "portrait",
+      "cover": "staff-drop/cover.jpg"
+    }
+  },
+  "wall": null
+}

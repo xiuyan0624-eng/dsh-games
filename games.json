@@ -1,0 +1,19 @@
+{
+  "format": "dsh-games-feed",
+  "version": 1,
+  "name": "xiuyan0624-eng 的小游戏",
+  "author": "xiuyan0624-eng",
+  "updatedAt": "2026-11-25T16:28:58.007Z",
+  "games": [
+    {
+      "slug": "staff-drop",
+      "title": "音符对对碰",
+      "url": "staff-drop/",
+      "cover": "staff-drop/cover.jpg",
+      "dimension": "2d",
+      "orientation": "portrait",
+      "publishedAt": "2026-11-25T16:28:58.007Z"
+    }
+  ],
+  "wall": null
+}
