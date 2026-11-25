@@ -1105,7 +1105,7 @@
     g.restore();
     tape(g, tab.x + 36, tab.y + 2, 50, 22, -0.06, comboOn ? hexA(ACCENT, 0.55) : hexA('#D9B043', 0.5));
     star(g, tab.x + 22, tab.y + 22, 5, comboOn ? ACCENT : '#C9A227', -0.2, 0.9);
-    text(g, comboOn ? '连锁 ×' + combo : '最高时值 ' + RANKS[highest].tabName, tab.x + tab.w / 2 + 4, tab.y + 23, 15, comboOn ? ACCENT : INK, { weight: '700' });
+    text(g, comboOn ? '连奏 ×' + combo : '最高时值 ' + RANKS[highest].tabName, tab.x + tab.w / 2 + 4, tab.y + 23, 15, comboOn ? ACCENT : INK, { weight: '700' });
   }
   function drawNextCard(g) {
     g.save();
@@ -1377,9 +1377,9 @@
         var sa = sp * 0.7 + 0.4;
         g.beginPath(); g.arc(Math.cos(sa) * 106, Math.sin(sa) * 106, 1.6, 0, TAU); g.fill();
       }
-      text(g, '连锁', 0, -50, 18, ACCENT, { weight: '700', spacing: '6px' });
+      text(g, '连奏', 0, -50, 18, ACCENT, { weight: '700', spacing: '6px' });
       text(g, '×' + comboBanner.n, 0, 6, 62, ACCENT, { font: NUMF, weight: '700' });
-      text(g, 'CHAIN', 0, 58, 12, hexA(ACCENT, 0.7), { weight: '700', spacing: '4px', font: NUMF });
+      text(g, 'LEGATO', 0, 58, 12, hexA(ACCENT, 0.7), { weight: '700', spacing: '4px', font: NUMF });
       g.restore();
     }
     if (hanaBanner && hanaBanner.t > 0) {
@@ -1670,7 +1670,7 @@
     text(g, fmt(score), W / 2, y + 252, 62, INK, { font: NUMF, weight: '700' });
     text(g, '最高分 ' + fmt(best), W / 2, y + 296, 15, INK2, { weight: '600' });
     text(g, '最高时值 ' + fullRankName(highest), W / 2, y + 332, 14, ACCENT, { weight: '600' });
-    text(g, '合成 ' + merges + ' 次 · 最高连锁 ×' + maxCombo, W / 2, y + 358, 13, INK2);
+    text(g, '合成 ' + merges + ' 次 · 最高连奏 ×' + maxCombo, W / 2, y + 358, 13, INK2);
     if (newBest) {
       g.save();
       g.translate(x + w - 76, y + 232);
@@ -2540,7 +2540,7 @@
     g.lineWidth = 2;
     g.stroke();
     star(g, tab.x + 24, tab.y + 22, 7, comboOn ? CORAL : '#FFFDFB', -0.2, 0.95);
-    text(g, comboOn ? '连锁 ×' + combo : '最高 ' + fullRankName(highest), tab.x + tab.w / 2 + 8, tab.y + 23, 13, INK, { weight: '700' });
+    text(g, comboOn ? '连奏 ×' + combo : '最高 ' + fullRankName(highest), tab.x + tab.w / 2 + 8, tab.y + 23, 13, INK, { weight: '700' });
   }
 
   function drawNextCard(g) {
@@ -2696,9 +2696,9 @@
         var sa = sp / 8 * TAU + 0.2;
         star(g, Math.cos(sa) * 112, Math.sin(sa) * 106, 5, '#FFFDFB', sa, 0.8);
       }
-      text(g, '连锁', 0, -48, 18, '#FFFDFB', { weight: '700', spacing: '6px' });
+      text(g, '连奏', 0, -48, 18, '#FFFDFB', { weight: '700', spacing: '6px' });
       text(g, '×' + comboBanner.n, 0, 6, 62, '#FFFDFB', { font: NUMF2, weight: '700' });
-      text(g, 'CHAIN', 0, 58, 12, 'rgba(255,253,251,0.8)', { weight: '700', spacing: '4px', font: NUMF2 });
+      text(g, 'LEGATO', 0, 58, 12, 'rgba(255,253,251,0.8)', { weight: '700', spacing: '4px', font: NUMF2 });
       g.restore();
     }
     if (hanaBanner && hanaBanner.t > 0) {
@@ -2908,7 +2908,7 @@
     text(g, fmt(score), W / 2, y + 218, 62, INK, { font: NUMF2, weight: '700' });
     text(g, '最高分 ' + fmt(best), W / 2, y + 262, 15, INK2, { weight: '600' });
     text(g, '最高时值 ' + fullRankName(highest), W / 2, y + 296, 14, CORAL, { weight: '600' });
-    text(g, '合成 ' + merges + ' 次 · 最高连锁 ×' + maxCombo, W / 2, y + 324, 13, INK2);
+    text(g, '合成 ' + merges + ' 次 · 最高连奏 ×' + maxCombo, W / 2, y + 324, 13, INK2);
     if (newBest) {
       g.save();
       g.translate(x + w - 82, y + 210);
