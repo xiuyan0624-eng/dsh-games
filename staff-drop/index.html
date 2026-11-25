@@ -81,6 +81,9 @@
   ];
   var DROP_W = [0.25, 0.25, 0.25, 0.25];
   var MERGE_PTS = [0, 3, 6, 10, 15, 21, 28, 36, 45, 55];
+  // real-duration doubling: 32→16→8→4→2→whole; dotted 16→dotted 8→dotted 4→dotted 2.
+  // A dotted 2 doubled would be a dotted whole, which is outside this set, so two d2 stay put.
+  var MERGE_TO = [1, 3, 4, 5, 6, 7, 8, 9, -1, -1];
   var HANA_PTS = 66;
   var BEST_KEY = 'staffMerge.best.suika';
   function fullRankName(i) { var n = RANKS[i].durName; return n.slice(-2) === '音符' ? n : n + '音符'; }
@@ -528,7 +531,7 @@
           var rr2 = a.r + b.r;
           if (d2 >= rr2 * rr2 || d2 < 0.0001) continue;
           var d = Math.sqrt(d2);
-          if (it === 0 && a.rank === b.rank && a.age > 0.1 && b.age > 0.1 && d < rr2 + 0.6) {
+          if (it === 0 && a.rank === b.rank && a.age > 0.1 && b.age > 0.1 && d < rr2 + 0.6 && (a.rank === RANKS.length - 1 || MERGE_TO[a.rank] >= 0)) {
             a.dead = true; b.dead = true; mergeList.push([a, b]); continue;
           }
           var nx = dx / d, ny = dy / d, ov = rr2 - d;
@@ -566,6 +569,8 @@
   }
 
   function doMerge(a, b, pending) {
+    var target = MERGE_TO[a.rank];
+    if (a.rank < RANKS.length - 1 && target < 0) return;
     var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     merges += 1;
     combo = (timeAnim - lastMerge < 1.15) ? combo + 1 : 1;
@@ -583,7 +588,7 @@
       floaters.push({ x: mx, y: my - 20, life: 1.6, text: '华彩 +' + hp, color: ACCENT, size: 26 });
       return;
     }
-    var nr = a.rank + 1;
+    var nr = target;
     var nrk = RANKS[nr];
     var nb = {
       x: mx, y: my, vx: (a.vx + b.vx) * 0.35, vy: (a.vy + b.vy) * 0.35 - 30,
@@ -1465,7 +1470,7 @@
     // rules
     var rules = [
       '音符从上方落下，左右移动，松手落下',
-      '两个相同音符相撞，合成更高时值',
+      '两个相同音符相撞，合成两倍时值',
       '全音符相撞放华彩，谱面堆满则曲终'
     ];
     var ry = ty + 400;
@@ -2761,7 +2766,7 @@
     g.strokeStyle = '#FFFDFB'; g.lineWidth = 3; g.stroke();
     text(g, '♪', 0, 1, 24, '#FFFDFB', { weight: '700' });
     g.restore();
-    text(g, '相同音符相撞，时值变长', W / 2, 330, 20, INK2, { weight: '500' });
+    text(g, '相同音符相撞，时值翻倍', W / 2, 330, 20, INK2, { weight: '500' });
     // demo card
     stickerCard(g, 110, 382, 500, 196, 22, '#FBF6FF');
     rr(g, 126, 398, 468, 164, 16);
@@ -2783,7 +2788,7 @@
     // rules
     var rules = [
       '音符从上方落下，左右移动，松手落下',
-      '两个相同音符相撞，合成更高时值',
+      '两个相同音符相撞，合成两倍时值',
       '全音符相撞放华彩，谱面堆满则曲终'
     ];
     var ry = 640;
