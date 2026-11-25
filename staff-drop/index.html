@@ -1591,6 +1591,7 @@
     drawBanners(g);
     drawHUD(g);
     drawControls(g);
+    drawMotionControls(g);
     drawFX(g);
     drawPageMarks(g);
   }
@@ -1796,6 +1797,8 @@
       return;
     }
     if (hitCircle(p, PAUSE)) { press('pause'); paused = true; stopBgm(); return; }
+    if (hitRect(p, MOTION_BTN)) { motionTapPointer = e.pointerId; press('motion'); return; }
+    if (hitRect(p, NUDGE_BTN)) { press('nudge'); manualNudge(); return; }
     if (hitRect(p, BTN.left)) { press('left'); moveDrop(-26); return; }
     if (hitRect(p, BTN.right)) { press('right'); moveDrop(26); return; }
     if (hitRect(p, BTN.drop)) { press('drop'); dropNote(); return; }
@@ -1810,6 +1813,11 @@
     dropX = clampX(p.x);
   }
   function onUp(e) {
+    if (motionTapPointer != null && e.pointerId === motionTapPointer) {
+      motionTapPointer = null;
+      if (phase === 'playing' && !paused && hitRect(toLocal(e), MOTION_BTN)) toggleDeviceMotion();
+      return;
+    }
     if (!dragging) return;
     dragging = false;
     if (phase === 'playing' && !paused) dropNote();
@@ -2121,6 +2129,126 @@
     kittyButton(g,LOST_BTN,'再来一曲','#FF948C','lost',32);
     text(g,newBest?'新纪录！小猫为你鼓掌':'按 Enter 也能再来一曲',W/2,975,23,newBest?'#B64F45':INK2,{weight:'700'});g.restore();drawSound(g);
   }
+
+
+  /* Phone shake: bounded impulses through the existing collision/merge solver. */
+  var MOTION_BTN = { x: 104, y: 1218, w: 222, h: 50 };
+  var NUDGE_BTN = { x: 340, y: 1218, w: 142, h: 50 };
+  var motionTapPointer = null;
+  var motionInput = {
+    enabled: false, pending: false, hasReading: false,
+    status: '开启后可摇动手机', gravity: null, lastReading: 0,
+    lastImpulse: -Infinity, direction: 1, timer: null
+  };
+
+  function nudgeBalls(strength, direction) {
+    if (phase !== 'playing' || paused || document.hidden || !bodies.length) return false;
+    var now = performance.now() / 1000;
+    if (now - motionInput.lastImpulse < 0.65) return false;
+    var moved = 0;
+    strength = clamp(strength, 0.6, 1.15);
+    for (var i = 0; i < bodies.length; i++) {
+      var b = bodies[i];
+      if (b.dead || b.age < 0.18) continue;
+      var variation = 0.5 + 0.5 * Math.sin(i * 2.4 + b.seed * 6);
+      var inward = clamp((W / 2 - b.x) * 0.35, -85, 85);
+      b.vx = clamp(b.vx + direction * (130 + variation * 85) * strength + inward, -360, 360);
+      // Near the warning line, push sideways without throwing a ball upward.
+      if (b.y - b.r > TOP_LINE + 70) {
+        b.vy = clamp(b.vy - (170 + variation * 85) * strength, -320, 900);
+      }
+      b.spin = clamp(b.spin + direction * (0.6 + variation), -2, 2);
+      b.sq = -0.035;
+      moved++;
+    }
+    if (!moved) return false;
+    motionInput.lastImpulse = now;
+    shake(2, 0.15);
+    return true;
+  }
+
+  function manualNudge() {
+    if (nudgeBalls(1, motionInput.direction)) motionInput.direction *= -1;
+  }
+
+  function finiteAxis(value) { return typeof value === 'number' && isFinite(value); }
+  function onDeviceMotion(event) {
+    if (!motionInput.enabled) return;
+    if (phase !== 'playing' || paused || document.hidden) {
+      motionInput.gravity = null; motionInput.lastReading = 0; return;
+    }
+    var raw = event.acceleration;
+    var includesGravity = false;
+    if (!raw || !(finiteAxis(raw.x) || finiteAxis(raw.y) || finiteAxis(raw.z))) {
+      raw = event.accelerationIncludingGravity; includesGravity = true;
+    }
+    if (!raw || !(finiteAxis(raw.x) || finiteAxis(raw.y) || finiteAxis(raw.z))) return;
+    var vector = [finiteAxis(raw.x) ? raw.x : 0, finiteAxis(raw.y) ? raw.y : 0, finiteAxis(raw.z) ? raw.z : 0];
+    var now = performance.now() / 1000;
+    var dt = motionInput.lastReading ? clamp(now - motionInput.lastReading, 1 / 120, 0.12) : 1 / 60;
+    motionInput.lastReading = now;
+    motionInput.hasReading = true;
+    motionInput.status = '摇动手机，让音符相碰';
+    if (includesGravity) {
+      if (!motionInput.gravity) { motionInput.gravity = vector.slice(); return; }
+      var alpha = 1 - Math.exp(-dt / 0.35);
+      for (var i = 0; i < 3; i++) {
+        var observed = vector[i];
+        vector[i] -= motionInput.gravity[i];
+        motionInput.gravity[i] += (observed - motionInput.gravity[i]) * alpha;
+      }
+    }
+    var magnitude = Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
+    if (magnitude < 8) return;
+    var angle = window.screen.orientation && finiteAxis(window.screen.orientation.angle)
+      ? window.screen.orientation.angle : (finiteAxis(window.orientation) ? window.orientation : 0);
+    var radians = angle * Math.PI / 180;
+    var horizontal = vector[0] * Math.cos(radians) + vector[1] * Math.sin(radians);
+    var direction = Math.abs(horizontal) > 1 ? (horizontal > 0 ? -1 : 1) : motionInput.direction;
+    if (nudgeBalls(magnitude / 16, direction)) motionInput.direction = -direction;
+  }
+
+  async function toggleDeviceMotion() {
+    if (motionInput.pending) return;
+    if (motionInput.enabled) {
+      motionInput.enabled = false;
+      motionInput.gravity = null; motionInput.lastReading = 0;
+      clearTimeout(motionInput.timer);
+      window.removeEventListener('devicemotion', onDeviceMotion);
+      motionInput.status = '摇一摇已关闭';
+      return;
+    }
+    var api = window.DeviceMotionEvent;
+    if (!api) { motionInput.status = '此设备可点“晃一晃”'; return; }
+    motionInput.pending = true;
+    motionInput.status = '请允许动作访问';
+    try {
+      // Called directly from pointerup: permission must retain user activation.
+      var permission = typeof api.requestPermission === 'function' ? await api.requestPermission() : 'granted';
+      if (permission !== 'granted') { motionInput.status = '未获授权，可点晃一晃'; return; }
+      motionInput.enabled = true;
+      motionInput.gravity = null; motionInput.lastReading = 0; motionInput.hasReading = false;
+      motionInput.status = '摇动手机，让音符相碰';
+      window.addEventListener('devicemotion', onDeviceMotion, { passive: true });
+      clearTimeout(motionInput.timer);
+      motionInput.timer = setTimeout(function () {
+        if (motionInput.enabled && !motionInput.hasReading) motionInput.status = '未收到动作，可点晃一晃';
+      }, 3000);
+    } catch (e) {
+      motionInput.status = '暂不可用，可点晃一晃';
+    } finally { motionInput.pending = false; }
+  }
+
+  function drawMotionControls(g) {
+    kittyButton(g, MOTION_BTN, motionInput.pending ? '等待允许' : motionInput.enabled ? '摇一摇：开' : '开启摇一摇', '#FFF0B9', 'motion', 23);
+    kittyButton(g, NUDGE_BTN, '晃一晃', '#F2C7A0', 'nudge', 23);
+    text(g, motionInput.status, 112, 1190, 17, INK2, { align: 'left', weight: '700' });
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    motionInput.gravity = null; motionInput.lastReading = 0;
+  });
+  window.addEventListener('pointercancel', function () { motionTapPointer = null; });
 
 
   /* ---------------------------------------------------------------- *
