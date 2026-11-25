@@ -1932,7 +1932,7 @@
     var img = new Image(); img.src = kittyArtSources[name]; kittyArt[name] = img;
   });
   var kittyTokenCache = {};
-  var kittyColors = ['#C9B6E4','#B7A1DA','#BDA7D9','#A9D3E8','#AED5C6','#F3D783','#E9C08B','#BAD091','#E4ACBA','#F29C91'];
+  var kittyColors = ['#66BEB2','#B69ADB','#E9A8C9','#78B5E2','#A0B0C5','#F1D26D','#EBA15E','#91BD79','#BDB4A7','#EF8D80'];
   RANKS.forEach(function (r, i) { r.color = kittyColors[i]; r.deep = INK; });
 
   function kittyArtAt(g, name, x, y, w, h) {
@@ -2081,7 +2081,8 @@
     if(grainPat){g.fillStyle=grainPat;g.fill();}
     var wash=g.createLinearGradient(-80,-110,90,100);wash.addColorStop(0,'rgba(255,255,255,.24)');wash.addColorStop(.55,'rgba(255,255,255,0)');wash.addColorStop(1,'rgba(125,79,53,.08)');g.fillStyle=wash;g.fill();
     g.strokeStyle=INK2;g.lineWidth=3.1;g.stroke();
-    g.save();g.translate(0,4);drawNoteGlyph(g,RANKS[rank].dur,133,INK);g.restore();
+    g.save();g.translate(0,-18);drawNoteGlyph(g,RANKS[rank].dur,115,INK);g.restore();
+    text(g,RANKS[rank].durName,0,68,RANKS[rank].durName.length>4?34:40,INK,{weight:'700'});
     kittyTokenCache[rank]=c;return c;
   }
   function drawToken(g,rank,x,y,r,o) {
