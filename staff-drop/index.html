@@ -529,11 +529,15 @@
           var dx = b.x - a.x, dy = b.y - a.y;
           var d2 = dx * dx + dy * dy;
           var rr2 = a.r + b.r;
+          // A four-pixel edge allowance catches light grazing contacts,
+          // including newly merged balls; ordinary bounce geometry stays exact.
+          var mergeReach = rr2 + 4;
+          if (it === 0 && a.rank === b.rank && d2 <= mergeReach * mergeReach && (a.rank === RANKS.length - 1 || MERGE_TO[a.rank] >= 0)) {
+            a.dead = true; b.dead = true; mergeList.push([a, b]);
+            break; // Each ball can be consumed only once in this physics step.
+          }
           if (d2 >= rr2 * rr2 || d2 < 0.0001) continue;
           var d = Math.sqrt(d2);
-          if (it === 0 && a.rank === b.rank && a.age > 0.1 && b.age > 0.1 && d < rr2 + 0.6 && (a.rank === RANKS.length - 1 || MERGE_TO[a.rank] >= 0)) {
-            a.dead = true; b.dead = true; mergeList.push([a, b]); continue;
-          }
           var nx = dx / d, ny = dy / d, ov = rr2 - d;
           var corr = ov * 0.5 * 0.75;
           a.x -= nx * corr; a.y -= ny * corr;
@@ -2144,18 +2148,24 @@
   function nudgeBalls(strength, direction) {
     if (phase !== 'playing' || paused || document.hidden || !bodies.length) return false;
     var now = performance.now() / 1000;
-    if (now - motionInput.lastImpulse < 0.65) return false;
+    if (now - motionInput.lastImpulse < 0.45) return false;
     var moved = 0;
-    strength = clamp(strength, 0.6, 1.15);
+    strength = clamp(strength, 0.85, 1.35);
     for (var i = 0; i < bodies.length; i++) {
       var b = bodies[i];
       if (b.dead || b.age < 0.18) continue;
       var variation = 0.5 + 0.5 * Math.sin(i * 2.4 + b.seed * 6);
-      var inward = clamp((W / 2 - b.x) * 0.35, -85, 85);
-      b.vx = clamp(b.vx + direction * (130 + variation * 85) * strength + inward, -360, 360);
-      // Near the warning line, push sideways without throwing a ball upward.
-      if (b.y - b.r > TOP_LINE + 70) {
-        b.vy = clamp(b.vy - (170 + variation * 85) * strength, -320, 900);
+      var inward = clamp((W / 2 - b.x) * 0.85, -150, 150);
+      // Neighboring balls move in different directions so the pile mixes,
+      // rather than translating the whole pile by the same tiny amount.
+      var stagger = i % 2 ? -1 : 1;
+      b.vx = clamp(b.vx + direction * stagger * (260 + variation * 170) * strength + inward, -620, 620);
+      // Give settled balls enough lift to leave their pockets. Limit the
+      // intended rise to available headroom below the overflow line.
+      var headroom = Math.max(0, b.y - b.r - TOP_LINE - 32);
+      var liftLimit = Math.min(800, Math.sqrt(2 * GRAV * headroom) * 0.85);
+      if (liftLimit > 0) {
+        b.vy = Math.max(-liftLimit, Math.min(b.vy, -(480 + variation * 220) * strength));
       }
       b.spin = clamp(b.spin + direction * (0.6 + variation), -2, 2);
       b.sq = -0.035;
@@ -2163,7 +2173,7 @@
     }
     if (!moved) return false;
     motionInput.lastImpulse = now;
-    shake(2, 0.15);
+    shake(4, 0.22);
     return true;
   }
 
@@ -2199,13 +2209,13 @@
       }
     }
     var magnitude = Math.sqrt(vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]);
-    if (magnitude < 8) return;
+    if (magnitude < 6) return;
     var angle = window.screen.orientation && finiteAxis(window.screen.orientation.angle)
       ? window.screen.orientation.angle : (finiteAxis(window.orientation) ? window.orientation : 0);
     var radians = angle * Math.PI / 180;
     var horizontal = vector[0] * Math.cos(radians) + vector[1] * Math.sin(radians);
     var direction = Math.abs(horizontal) > 1 ? (horizontal > 0 ? -1 : 1) : motionInput.direction;
-    if (nudgeBalls(magnitude / 16, direction)) motionInput.direction = -direction;
+    if (nudgeBalls(magnitude / 14, direction)) motionInput.direction = -direction;
   }
 
   async function toggleDeviceMotion() {
