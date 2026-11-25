@@ -90,7 +90,7 @@
 
   var HUD_H = 196;
   var JAR_W = 480, JAR_X = 120, JAR_Y = 320;
-  var JAR_H = 720, JAR_BOTTOM = 1040, TOP_LINE = 384, DROP_Y = 292;
+  var JAR_H = 800, JAR_BOTTOM = 1120, TOP_LINE = 384, DROP_Y = 292;
   var BAR_Y = 1180, HINT_Y = 1256;
   var NEXT = { x: 488, y: 88, w: 208, h: 84 };
   var SND = { x: 656, y: 42, r: 20 };
@@ -240,7 +240,7 @@
   }
 
   function layout() {
-    JAR_H = clampInt(H - 838, 560, 820);
+    JAR_H = clampInt(H - 758, 560, 860);
     JAR_BOTTOM = JAR_Y + JAR_H;
     TOP_LINE = JAR_Y + 64;
     DROP_Y = JAR_Y - 28;
