@@ -81,9 +81,11 @@
   var DROP_W = [0.25, 0.25, 0.25, 0.25];
   var MERGE_PTS = [0, 3, 10, 15, 21, 28, 36, 45, 55];
   // real-duration doubling: 32→16→8→4→2→whole; dotted 8→dotted 4→dotted 2.
-  // A dotted 2 doubled would be a dotted whole, which is outside this set, so two d2 stay put.
+  // Whole and dotted-half endpoints resolve as reward clears, not larger notes.
   var MERGE_TO = [1, 2, 4, 5, 6, 7, 8, -1, -1];
   var HANA_PTS = 66;
+  function isTerminalRank(rank) { return RANKS[rank].id === 'd2' || RANKS[rank].id === 'do'; }
+  function canMergeRank(rank) { return MERGE_TO[rank] >= 0 || isTerminalRank(rank); }
   var BEST_KEY = 'staffMerge.best.suika';
   function fullRankName(i) { var n = RANKS[i].durName; return n.slice(-2) === '音符' ? n : n + '音符'; }
 
@@ -528,10 +530,10 @@
           var dx = b.x - a.x, dy = b.y - a.y;
           var d2 = dx * dx + dy * dy;
           var rr2 = a.r + b.r;
-          // A eight-pixel edge allowance catches light grazing contacts,
+          // An eight-pixel edge allowance catches light grazing contacts,
           // including newly merged balls; ordinary bounce geometry stays exact.
           var mergeReach = rr2 + 8;
-          if (it === 0 && a.rank === b.rank && d2 <= mergeReach * mergeReach && (a.rank === RANKS.length - 1 || MERGE_TO[a.rank] >= 0)) {
+          if (it === 0 && a.rank === b.rank && d2 <= mergeReach * mergeReach && canMergeRank(a.rank)) {
             a.dead = true; b.dead = true; mergeList.push([a, b]);
             break; // Each ball can be consumed only once in this physics step.
           }
@@ -573,22 +575,23 @@
 
   function doMerge(a, b, pending) {
     var target = MERGE_TO[a.rank];
-    if (a.rank < RANKS.length - 1 && target < 0) return;
+    if (target < 0 && !isTerminalRank(a.rank)) return;
     var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
     merges += 1;
     combo = (timeAnim - lastMerge < 1.15) ? combo + 1 : 1;
     lastMerge = timeAnim;
     maxCombo = Math.max(maxCombo, combo);
     var mult = Math.min(2.0, 1 + 0.10 * (combo - 1));
-    if (a.rank >= RANKS.length - 1) {
+    if (isTerminalRank(a.rank)) {
       var hp = Math.round(HANA_PTS * mult);
       score += hp;
-      highest = RANKS.length - 1;
-      hanaBanner = { t: 2.3 };
+      highest = Math.max(highest, a.rank);
+      var finaleTitle = RANKS[a.rank].id === 'd2' ? '\u9644\u70b9\u534e\u5f69' : '\u534e\u5f69';
+      hanaBanner = { t: 2.3, title: finaleTitle, detail: '\u4e24\u4e2a' + fullRankName(a.rank) + '\u76f8\u649e' };
       sfxHana(); shake(4, 0.30);
       addRing(mx, my, ACCENT, 160, 0.7);
       paperBurst(mx, my, 26);
-      floaters.push({ x: mx, y: my - 20, life: 1.6, text: '华彩 +' + hp, color: ACCENT, size: 26 });
+      floaters.push({ x: mx, y: my - 20, life: 1.6, text: finaleTitle + ' +' + hp, color: ACCENT, size: 26 });
       return;
     }
     var nr = target;
@@ -1394,8 +1397,8 @@
       g.rotate(-0.03);
       g.fillStyle = hexA(ACCENT, 0.12);
       g.beginPath(); g.arc(0, 0, 116, 0, TAU); g.fill();
-      text(g, '华 彩', 0, -10, 68, ACCENT, { weight: '700', spacing: '6px' });
-      text(g, '两个全音符相撞', 0, 54, 16, hexA(ACCENT, 0.85), { weight: '600' });
+      text(g, hanaBanner.title || '\u534e\u5f69', 0, -10, hanaBanner.title === '\u9644\u70b9\u534e\u5f69' ? 48 : 68, ACCENT, { weight: '700', spacing: '6px' });
+      text(g, hanaBanner.detail || '\u4e24\u4e2a\u5168\u97f3\u7b26\u76f8\u649e', 0, 54, 16, hexA(ACCENT, 0.85), { weight: '600' });
       for (var s = 0; s < 8; s += 1) {
         var ang = s / 8 * TAU + timeAnim * 0.4;
         star(g, Math.cos(ang) * 128, Math.sin(ang) * 108, 6, '#D9B043', ang, 0.7);
@@ -2112,7 +2115,8 @@
     text(g,'两个八分音符，合成一个四分音符',W/2,969,25,INK2,{weight:'700'});
     g.save();g.strokeStyle='#CFAC86';g.lineWidth=1.4;g.setLineDash([7,7]);g.beginPath();g.moveTo(96,1008);g.lineTo(624,1008);g.stroke();g.restore();
     text(g,'左右移动，松手落下',W/2,1057,29,INK,{weight:'700'});
-    text(g,'全音符相撞放华彩，堆满就曲终',W/2,1111,25,INK2,{weight:'700'});
+    text(g,'全音符、附点二分相撞放华彩',W/2,1111,25,INK2,{weight:'700'});
+    text(g,'\u5806\u6ee1\u8b66\u6212\u7ebf\u5c31\u66f2\u7ec8',W/2,1202,21,INK2);
     kittyButton(g,TITLE_START,'开始对碰 →','#FF948C','start',44);
     kittyCard(g,225,1410,270,58,PAPER,29,false);text(g,'最高分 '+fmt(best),360,1439,26,INK2,{weight:'700'});
     text(g,'也可按 Enter 开始',W/2,1513,18,INK2);
@@ -2156,7 +2160,7 @@
       var variation = 0.5 + 0.5 * Math.sin(i * 2.4 + b.seed * 6);
       var inward = clamp((W / 2 - b.x) * 0.85, -150, 150);
       var nearest = null, nearestDistance = Infinity;
-      if (MERGE_TO[b.rank] >= 0 || b.rank === RANKS.length - 1) {
+      if (canMergeRank(b.rank)) {
         for (var j = 0; j < bodies.length; j++) {
           var other = bodies[j];
           if (other === b || other.dead || other.rank !== b.rank) continue;
