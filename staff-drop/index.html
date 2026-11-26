@@ -436,6 +436,7 @@
   var merges = 0, maxCombo = 0, combo = 0, lastMerge = -9, highest = 0;
   var comboBanner = null, rankBanner = null, hanaBanner = null;
   var danger = 0, shakeT = 0, shakeMag = 0, elapsed = 0, timeAnim = 0;
+  var shakeGraceUntil = 0;
   var fps = 60, frames = 0, fpsT = 0, physicsAcc = 0;
   var restartGuard = 0, dragging = false, dragStartX = 0, dragMoved = 0;
   var keys = { left: false, right: false };
@@ -459,6 +460,7 @@
     score = 0; scoreShown = 0; merges = 0; maxCombo = 0; combo = 0; lastMerge = -9; highest = 0;
     comboBanner = null; rankBanner = null; hanaBanner = null;
     danger = 0; shakeT = 0; shakeMag = 0; elapsed = 0; timeAnim = 0; physicsAcc = 0;
+    shakeGraceUntil = 0;
     restartGuard = 0; dragging = false; keys.left = false; keys.right = false;
     newBest = false;
     postState(); emitPhase(); sfxStart(); startBgm();
@@ -1723,14 +1725,20 @@
       physicsAcc -= STEP;
       steps += 1;
     }
-    // overflow
-    var dm = 0;
+    // Only a settled pile held above the line can end the round.
+    // Shake-caused flights get a short recovery window and a fresh timer.
+    var dm = 0, recoveringFromShake = elapsed < shakeGraceUntil;
     for (var i = 0; i < bodies.length; i += 1) {
       var b = bodies[i];
-      if (b.age > 0.55) {
-        if (b.y - b.r < TOP_LINE) { b.overT += dt; dm = Math.max(dm, b.overT); }
-        else b.overT = Math.max(0, b.overT - dt * 3);
-      }
+      var above = b.y - b.r < TOP_LINE;
+      // Constraint solving can retain velocity in an otherwise still pile.
+      // Judge rest by visible world-position movement, not stored velocity.
+      var settleDistance = Math.max(0.5, dt * 95);
+      var settled = b.overflowX != null && Math.abs(b.x - b.overflowX) <= settleDistance && Math.abs(b.y - b.overflowY) <= settleDistance;
+      b.overflowX = b.x; b.overflowY = b.y;
+      if (b.age > 0.55 && above && settled && !recoveringFromShake) {
+        b.overT += dt; dm = Math.max(dm, b.overT);
+      } else { b.overT = 0; }
     }
     danger = dm > 0.22 ? dm : 0;
     if (dm > 2.0) { gameOver(); return; }
@@ -2027,7 +2035,7 @@
     var warn=danger>0;
     g.save();g.setLineDash([8,9]);g.lineWidth=warn?2.8:1.8;g.strokeStyle=warn?'#D94F45':'#E79384';
     g.beginPath();g.moveTo(JAR_X+18,TOP_LINE);g.lineTo(JAR_X+JAR_W-18,TOP_LINE);g.stroke();g.restore();
-    text(g,warn?'谱面告急！':'警戒线',JAR_X+24,TOP_LINE-22,18,warn?'#B83D35':INK2,{align:'left',weight:'700'});
+    text(g,warn?'谱面告急！':elapsed<shakeGraceUntil?'回落缓冲中':'警戒线',JAR_X+24,TOP_LINE-22,18,warn?'#B83D35':INK2,{align:'left',weight:'700'});
     kittyArtAt(g,'cat',494,1122,188,150);
     kittyCard(g,324,1151,191,64,PAPER,24,false);
     text(g,merges?'碰一碰，变大啦！':'试着碰在一起吧',419,1182,18,INK2,{weight:'700'});
@@ -2089,21 +2097,39 @@
     }
     if(dur>=6){g.beginPath();g.arc(s*.36,hy,Math.max(2.4,s*.045),0,TAU);g.fill();}g.restore();
   }
+  function kittyOrbPath(g, rank) {
+    var points = [], count = 64, phase = 0.63 + rank * 1.733;
+    for (var i = 0; i < count; i++) {
+      var angle = i * TAU / count;
+      var radius = 116 * (0.987 + 0.032 * Math.sin(3 * angle + phase)
+        + 0.014 * Math.sin(5 * angle + phase * 0.7)
+        + 0.009 * Math.sin(2 * angle - phase));
+      points.push({ x: Math.cos(angle) * radius * 1.01, y: Math.sin(angle) * radius * 0.99 });
+    }
+    g.beginPath();g.moveTo(points[0].x,points[0].y);
+    for (var j = 0; j < count; j++) {
+      var p0=points[(j+count-1)%count],p1=points[j],p2=points[(j+1)%count],p3=points[(j+2)%count];
+      g.bezierCurveTo(p1.x+(p2.x-p0.x)/6,p1.y+(p2.y-p0.y)/6,
+        p2.x-(p3.x-p1.x)/6,p2.y-(p3.y-p1.y)/6,p2.x,p2.y);
+    }
+    g.closePath();
+  }
+
   function kittyTokenImage(rank) {
     if(kittyTokenCache[rank])return kittyTokenCache[rank];
     var c=document.createElement('canvas');c.width=256;c.height=256;var g=c.getContext('2d');
-    g.translate(128,128);g.beginPath();g.arc(0,0,116,0,TAU);g.fillStyle=RANKS[rank].color;g.fill();
+    g.translate(128,128);kittyOrbPath(g,rank);g.fillStyle=RANKS[rank].color;g.fill();
     if(grainPat){g.fillStyle=grainPat;g.fill();}
     var wash=g.createLinearGradient(-80,-110,90,100);wash.addColorStop(0,'rgba(255,255,255,.24)');wash.addColorStop(.55,'rgba(255,255,255,0)');wash.addColorStop(1,'rgba(125,79,53,.08)');g.fillStyle=wash;g.fill();
     g.strokeStyle=INK2;g.lineWidth=3.1;g.stroke();
     g.save();g.translate(0,-18);drawNoteGlyph(g,RANKS[rank].dur,115,INK);g.restore();
-    text(g,RANKS[rank].durName,0,68,RANKS[rank].durName.length>4?34:40,INK,{weight:'700'});
+    text(g,RANKS[rank].durName,0,60,RANKS[rank].durName.length>4?34:40,INK,{weight:'700'});
     kittyTokenCache[rank]=c;return c;
   }
   function drawToken(g,rank,x,y,r,o) {
     o=o||{};var scale=o.scale==null?1:o.scale;
     if(o.born!=null)scale*=.72+.28*easeOutCubic(clamp((timeAnim-o.born)/.16,0,1));
-    g.save();g.translate(x,y);g.rotate(o.rot||0);g.scale(scale,scale);if(o.alpha!=null)g.globalAlpha*=o.alpha;
+    g.save();g.translate(x,y);g.rotate(o.rot||0);g.scale(scale,scale);var squish=clamp(o.sq||0,-0.2,0.2);g.scale(1+squish*0.18,1-squish*0.18);if(o.alpha!=null)g.globalAlpha*=o.alpha;
     var extent=r*128/116;g.drawImage(kittyTokenImage(rank),-extent,-extent,extent*2,extent*2);g.restore();
   }
   function drawTitle(g) {
@@ -2116,7 +2142,7 @@
     g.save();g.strokeStyle='#CFAC86';g.lineWidth=1.4;g.setLineDash([7,7]);g.beginPath();g.moveTo(96,1008);g.lineTo(624,1008);g.stroke();g.restore();
     text(g,'左右移动，松手落下',W/2,1057,29,INK,{weight:'700'});
     text(g,'全音符、附点二分相撞放华彩',W/2,1111,25,INK2,{weight:'700'});
-    text(g,'\u5806\u6ee1\u8b66\u6212\u7ebf\u5c31\u66f2\u7ec8',W/2,1202,21,INK2);
+    text(g,'\u7a33\u5b9a\u8d8a\u8fc7\u8b66\u6212\u7ebf\u624d\u66f2\u7ec8',W/2,1202,21,INK2);
     kittyButton(g,TITLE_START,'开始对碰 →','#FF948C','start',44);
     kittyCard(g,225,1410,270,58,PAPER,29,false);text(g,'最高分 '+fmt(best),360,1439,26,INK2,{weight:'700'});
     text(g,'也可按 Enter 开始',W/2,1513,18,INK2);
@@ -2188,6 +2214,9 @@
     }
     if (!moved) return false;
     motionInput.lastImpulse = now;
+    shakeGraceUntil = elapsed + 1.4;
+    for (var k = 0; k < bodies.length; k++) bodies[k].overT = 0;
+    danger = 0;
     shake(5, 0.24);
     return true;
   }
